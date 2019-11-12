@@ -127,13 +127,13 @@ class AksResourceController(object):
             
 if __name__ == '__main__':
     aksrc = AksResourceController(
-        servicePrincipal='1b0c1144-5afd-4c33-b3cc-b84b44a68efa',
-        clientSecret='S8BCE.iX4cbi5@=x:92l-BY2XHYbe?MB',
-        tenant='d7063cf2-afd6-43fc-aa12-1667d97f0885',
-        resourceGroup='akstest-rg', 
-        storageAccountName='msftdevdayamlsa',
-        storageBlobName='data',
-        clusterName='akstest-cluster', 
+        servicePrincipal=os.environ.get("SP_APP_ID"),
+        clientSecret=os.environ.get("SP_APP_SECRET"),
+        tenant=os.environ.get("TENANT_ID"),
+        resourceGroup=os.environ.get("AKS_RG"),
+        storageAccountName=os.environ.get("STORAGE_ACCT_NAME"),
+        storageBlobName=os.environ.get("CONTANER_NAME"),
+        clusterName=os.environ.get("AKS_NAME"),
         sla=50, 
         threshold=20, 
         scale_increment_nodes=1, 
