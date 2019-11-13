@@ -11,7 +11,7 @@ variables:
 
 pool:
   vmImage: 'ubuntu-latest'
-container: mcr.microsoft.com/mlops:python:latest
+container: mcr.microsoft.com/mlops/python:latest
 
 steps:
 
