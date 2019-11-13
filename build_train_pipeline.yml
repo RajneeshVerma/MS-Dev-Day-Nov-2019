@@ -15,7 +15,7 @@ container: mcr.microsoft.com/mlops/python:latest
 
 steps:
 
-- task: CmdLine@2
-  inputs:
-    script: python $(Build.SourcesDirectory)/build_train_pipeline.py
+- script: python $(Build.SourcesDirectory)/build_train_pipeline.py
+  env:
+    SP_APP_SECRET: '$(SP_APP_SECRET)'
   displayName: 'Run `build_train_pipeline.py'
