@@ -1,0 +1,21 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+variables:
+- group: devopsforai-aml-vg
+
+pool:
+  vmImage: 'ubuntu-latest'
+container: mcr.microsoft.com/mlops/python:latest
+
+steps:
+
+- script: python $(Build.SourcesDirectory)/build_train_pipeline.py
+  env:
+    SP_APP_SECRET: '$(SP_APP_SECRET)'
+  displayName: 'Run `build_train_pipeline.py`'
