@@ -1,4 +1,4 @@
-az login
+az login # Not required in Azure Cloud Shell
 az group create --name <a_resource_group_name> --location <a_region_name>
 az aks create --resource-group <the_resource_group_name> \
     --name <a_cluster_name> \
