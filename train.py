@@ -45,6 +45,8 @@ parser.add_argument(
     help="azure storage container name"
 )
 args = parser.parse_args()
+import sklearn
+print(sklearn.__version__)
 print("Argument 1: %s" % args.release_id)
 print("Argument 2: %s" % args.model_name)
 print("Argument 3: %s" % args.storageacctname)
@@ -68,19 +70,23 @@ x, y = joblib.load(a)
 split_at = int(x.shape[0] * 0.80)
 x_train = x[:split_at]
 x_test = x[split_at:]
-y_train = x[:split_at]
-y_test = x[split_at:]
+y_train = y[:split_at]
+y_test = y[split_at:]
 print('DATA SHAPES', x_train.shape, y_train.shape, x_test.shape, y_test.shape)
 
 # avg completion time
 model = LinearRegression()
 model.fit(x_train, y_train)
 preds = model.predict(x_test)
-model.fit(x_train, y_train)
-preds = model.predict(x_test)
 run.log("avg_completion_time.pkl_r2", r2_score(preds, y_test))
-with open('avg_completion_time.pkl', "wb") as file:
-    joblib.dump(value=model, filename='avg_completion_time.pkl')
+joblib.dump(value=model, filename='avg_completion_time.pkl')
+# register models
+run.upload_file(name="./outputs/" + 'avg_completion_time.pkl', path_or_stream='avg_completion_time.pkl')
+model_path = os.path.join('outputs', 'avg_completion_time.pkl')
+run.register_model(
+    model_name='avg_completion_time.pkl',
+    model_path=model_path,
+    properties={"release_id": release_id})
 block_blob_service.create_blob_from_path(args.containername, 'avg_completion_time.pkl', 'avg_completion_time.pkl')
 
 # user models
@@ -93,8 +99,14 @@ for i, model_name in enumerate(ts_models):
     model.fit(ts_x_train, ts_y_train)
     preds = model.predict(ts_x_test)
     run.log(model_name + "_r2", r2_score(preds, ts_y_test))
-    with open(model_name, "wb") as file:
-        joblib.dump(value=model, filename=model_name)
+    joblib.dump(value=model, filename=model_name)
+    # register models
+    run.upload_file(name="./outputs/" + model_name, path_or_stream=model_name)
+    model_path = os.path.join('outputs', model_name)
+    run.register_model(
+        model_name=model_name,
+        model_path=model_path,
+        properties={"release_id": release_id})
     block_blob_service.create_blob_from_path(args.containername, model_name, model_name)
 
 # Add properties to identify this specific training run

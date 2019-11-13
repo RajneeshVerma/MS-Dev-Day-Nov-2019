@@ -1,12 +1,14 @@
 from azure.cli.core import get_default_cli
+from azure.storage.blob import BlockBlobService
 from sklearn.externals import joblib
 import os
 import numpy as np
+import io
 
 class AksResourceController(object):
  
     def __init__(self, servicePrincipal, clientSecret, tenant, resourceGroup, 
-                 storageAccountName, storageBlobName,clusterName, sla, threshold, 
+                 storageAccountName, storageAccountKey, storageBlobName, clusterName, sla, threshold, 
                  scale_increment_nodes, min_nodes, model_endpoint):
         # initialize the object
         self.servicePrincipal = servicePrincipal
@@ -14,6 +16,7 @@ class AksResourceController(object):
         self.tenant = tenant
         self.resourceGroup = resourceGroup
         self.storageAccountName = storageAccountName
+        self.storageAccountKey = storageAccountKey
         self.storageBlobName = storageBlobName
         self.clusterName = clusterName
         self.sla = sla
@@ -58,15 +61,9 @@ class AksResourceController(object):
         self.current_nodes = self.cli.result.result['agentPoolProfiles'][0]['count'] # only handling 1st node pool
         
     def load_data(self):
-        # load data
-        self.cli.invoke([
-            'storage', 'blob', 'download',
-            '--account-name', self.storageAccountName,
-            '--container-name', self.storageBlobName,
-            '--name', 'log_data.pkl',
-            '--file', 'log_data.pkl'
-        ])
-        self.x, self.y = joblib.load('log_data.pkl')
+        block_blob_service = BlockBlobService(account_name=self.storageAccountName, account_key=self.storageAccountKey)
+        obj = block_blob_service.get_blob_to_bytes(self.storageBlobName, 'log_data.pkl')
+        self.x, self.y = joblib.load(io.BytesIO(obj.content))
         
     def load_models(self):
         # load models
@@ -118,6 +115,7 @@ class AksResourceController(object):
                  
     def verify_compliance(self):
         # checks prediction versus SLA and triggers resource changes to meet SLA
+        print(self.prediction, self.sla, self.threshold)
         if self.prediction > self.sla + self.threshold: # under-resourced
             self.change = max(self.current_nodes + self.scale_increment_nodes, self.min_nodes)
             self.scale(self.change) # at least one node running
@@ -132,7 +130,8 @@ if __name__ == '__main__':
         tenant=os.environ.get("TENANT_ID"),
         resourceGroup=os.environ.get("AKS_RG"),
         storageAccountName=os.environ.get("STORAGE_ACCT_NAME"),
-        storageBlobName=os.environ.get("CONTANER_NAME"),
+        storageAccountKey=os.environ.get("STORAGE_ACCT_KEY"),
+        storageBlobName=os.environ.get("STORAGE_BLOB_NAME"),
         clusterName=os.environ.get("AKS_NAME"),
         sla=50, 
         threshold=20, 
