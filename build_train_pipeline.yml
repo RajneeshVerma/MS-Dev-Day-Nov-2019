@@ -18,4 +18,4 @@ steps:
 - script: python $(Build.SourcesDirectory)/build_train_pipeline.py
   env:
     SP_APP_SECRET: '$(SP_APP_SECRET)'
-  displayName: 'Run `build_train_pipeline.py'
+  displayName: 'Run `build_train_pipeline.py`'
