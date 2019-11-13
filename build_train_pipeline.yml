@@ -13,5 +13,11 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-- script: ./build_train_pipeline.py
-  displayName: 'Run `build_train_pipeline.py`'
+
+- task: CmdLine@2
+  inputs:
+    script: |
+      pwd
+      ls -aF
+      ./build_train_pipeline.py
+  displayName: 'Run `build_train_pipeline.py'
