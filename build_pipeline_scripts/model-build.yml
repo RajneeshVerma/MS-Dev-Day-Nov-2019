@@ -18,7 +18,7 @@ steps:
 
 - bash: |
    # Invoke the Python building and publishing a training pipeline with Python on ML Compute
-   python3 $(System.DefaultWorkingDirectory)/build_train_pipeline.py
+   python3 $(System.DefaultWorkingDirectory)/python_scripts/build_train_pipeline.py
   failOnStderr: 'false'
   env:
     SP_APP_SECRET: '$(SP_APP_SECRET)'
@@ -31,8 +31,8 @@ steps:
     SourceFolder: '$(Build.SourcesDirectory)'
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
     Contents: |
-      ?(*.py|*.json)
-      scoring/**
+      ?(run_train_pipeline.py|*.json)
+      python_scripts/**
 
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifact'
