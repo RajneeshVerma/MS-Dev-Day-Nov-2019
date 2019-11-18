@@ -174,15 +174,90 @@ Congratulations!  You have created an Azure ML Pipeline.  We will train the pipe
 
 Congratulations!  You've trained your models.  We will create an AKS Cluster in the next section.
 
-## Challenge 3 - Create the AKS Cluster in a new Resource Group
+## Create the AKS Cluster
 
-In this section, we will be creating an AKS cluster to proactively scale.  Your challenge is to create an AKS cluster with the following specification:
+1. Navigate to the Azure Cloud Shell at https://shell.azure.com
+1. Use the following script to create an AKS Cluster ([docs](https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough))
+    ```
+    az login # Not required in Azure Cloud Shell
 
-- Resource Group Name: `atDevDayWorkshopRg`
-- Name: `atDevDayCluster`
-- Node Count: `1`
-- Auto-Scaling: `disabled`
+    # If you've already run this script, you'll need to remove cached service principle info in Azure
+    # rm .azure/aksServicePrincipal.json
 
-Documentation can be found at: [Quickstart: Deploy an Azure Kubernetes Service cluster](https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough)
+    az group create --name atDevDayWorkshopRG --location eastus
 
-Raise your hand when complete. The first completion will receive a raffle entry!
+    az provider register --namespace Microsoft.Network
+    az provider register --namespace Microsoft.Compute
+    az provider register --namespace Microsoft.Storage
+
+    az ad sp create-for-rbac --skip-assignment
+
+    # `aks create` will take a while!
+    # substitute values from `create-for-rbac` above!
+    az aks create --resource-group atDevDayWorkshopRG \
+        --name atDevDayCluster \
+        --service-principal <appId from create-for-rbac> \
+        --client-secret <password from create-for-rbac> \
+        --node-count 1 \
+        --vm-set-type VirtualMachineScaleSets \
+        --enable-cluster-autoscaler \
+        --generate-ssh-keys \
+        --node-vm-size Standard_D2_v3 \
+        --min-count 1 \
+        --max-count 2
+
+    # disable auto-scaling so we can proactively scale!
+    az aks update --resource-group atDevDayWorkshopRG --name atDevDayCluster --disable-cluster-autoscaler
+    ```  
+    ![Azure Cloud Shell AKS Creation](./readme_images/azure_cloud_shell_aks.png)
+    - If you get Service Principle errors, review the following article: [Service principals with Azure Kubernetes Service (AKS)](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal)
+1. Verify that AKS Cluster has been created correctly
+    1. `Azure Portal -> Kubernetes services -> atDevDayCluster -> Settings -> Node pools`
+        - `nodepool1` should be present and `Node count` should be `1`  
+        ![AKS Cluster Node Pool](./readme_images/aks_cluster_node_pool.png)
+
+Congratulations! You have create an AKS Cluster.  We will use the ML models to proactively scale the cluster in the next section.
+
+## Proactively Scale the AKS Cluster using Azure ML
+
+1. Capture AKS Variable Group Entries
+    - `Azure DevOps Project -> Sidebar -> Pipelines -> Library -> Variable Groups -> devopsforai-aml-vg`
+        - Add the following variables:
+
+            | Variable Name | Suggested Value |
+            | ------------- | --------------- |
+            | AKS_NAME | `atDevDayCluster` |
+            | AKS_RG | `atDevDayWorkshopRG` |
+1. Add the Service Principal to the AKS Cluster
+    1. `Azure Portal -> Kubernetes services -> atDevDayCluster -> Access Control (IAM) -> Add role assignment`
+        - Role: `Contributor`
+        - Assign access to: `Azure AD user, group, or service principle`
+        - Select: `<Your Service Principle name>`
+1. Create a new Azure DevOps Release to run the ML Scaler
+    1. `Azure DevOps Project Sidebar -> Pipelines -> Releases -> Train ML Pipeline -> ... in top right -> Clone`
+        - Name: `Run ML Scaler`
+        - Update the `Command Line Script` task to look like the following: 
+            - Display Name: `Run ML Scaler Script`
+            - Script:
+            ```
+            docker run -v $(System.DefaultWorkingDirectory)/_model-build/mlops-pipelines/python_scripts/:/script \
+            -w=/script -e SP_APP_ID=$SP_APP_ID -e SP_APP_SECRET=$SP_APP_SECRET -e TENANT_ID=$TENANT_ID \
+            -e AKS_RG=$AKS_RG -e STORAGE_ACCT_NAME=$STORAGE_ACCT_NAME -e STORAGE_ACCT_KEY=$STORAGE_ACCT_KEY \
+            -e STORAGE_BLOB_NAME=$STORAGE_BLOB_NAME -e CONTANER_NAME=$CONTANER_NAME -e AKS_NAME=$AKS_NAME \
+            markschabacker/at_ml_dev_day:latest python AksResourceController.py
+            ```  
+            ![Run ML Scaler](./readme_images/run_ml_scaler_script.png)
+            - The docker image definition used in the script is available in the `docker/container` folder in this repo.
+1. Save and run the `Run ML Scaler` release
+    - This should take a while (5+ minutes)!
+
+
+1. Verify Scaling
+    - Review release logs  
+        ![Release Log](./readme_images/scaler_release_logs.png)
+    - Verify that AKS has been scaled
+        - `Azure Portal -> Kubernetes services -> atDevDayCluster -> Settings -> Node pools -> nodepool1`
+            - `Node count` should be `2`!  
+            ![AKS Scaled](./readme_images/aks_scaled.png)
+
+Congratulations!  You've used Machine Learning to proactively scale an Azure Kubernetes Service cluster!
